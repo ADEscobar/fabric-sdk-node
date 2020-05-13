@@ -56,7 +56,7 @@ const __func = function () {
 	return callsite()[1].getFunctionName() +
 		'[' + callsite()[1].getLineNumber() + ']: ';
 };
-
+let pkcs11_global_logged = false;
 /**
  * PKCS#11-compliant implementation to support Hardware Security Modules.
  *
@@ -321,11 +321,16 @@ class CryptoSuite_PKCS11 extends CryptoSuite {
 			logger.debug(__func() + 'C_GetSessionInfo(' +
 				util.inspect(this._pkcs11Session, {depth: null}) + '): ' +
 				util.inspect(pkcs11.C_GetSessionInfo(this._pkcs11Session), {depth: null}));
-
+			
 			/*
 			 * Login with PIN. Error will be thrown if wrong PIN.
 			 */
-			pkcs11.C_Login(this._pkcs11Session, pkcs11UserType, pkcs11Pin);
+			
+			if(!pkcs11_global_logged)
+			{
+				pkcs11.C_Login(this._pkcs11Session, pkcs11UserType, pkcs11Pin);
+				pkcs11_global_logged = true;
+			}
 			this._pkcs11Login = true;
 			logger.debug(__func() + 'session login successful');
 
@@ -404,22 +409,22 @@ class CryptoSuite_PKCS11 extends CryptoSuite {
 	 * Return SKI, EC point, and key handles.
 	 */
 	_pkcs11GenerateECKeyPair(pkcs11, pkcs11Session, pkcs11Token) {
-		// var ski = this._ski();
+		var ski = this._ski();
 		const privateKeyTemplate = [
-			// { type: pkcs11js.CKA_ID,        value: ski },
+			{ type: pkcs11js.CKA_ID,        value: ski },
 			{type: pkcs11js.CKA_CLASS, value: pkcs11js.CKO_PRIVATE_KEY},
 			{type: pkcs11js.CKA_KEY_TYPE, value: pkcs11js.CKK_EC},
 			{type: pkcs11js.CKA_PRIVATE, value: this._pkcs11Login},
-			{type: pkcs11js.CKA_TOKEN, value: this._pkcs11Login && pkcs11Token},
+			{type: pkcs11js.CKA_TOKEN, value: /*this._pkcs11Login && pkcs11Token*/true},
 			{type: pkcs11js.CKA_SIGN, value: true},
-			{type: pkcs11js.CKA_DERIVE, value: true}
+			{type: pkcs11js.CKA_DERIVE, value: false}
 		];
 		const publicKeyTemplate = [
-			// { type: pkcs11js.CKA_ID,        value: ski },
+			{ type: pkcs11js.CKA_ID,        value: ski },
 			{type: pkcs11js.CKA_CLASS, value: pkcs11js.CKO_PUBLIC_KEY},
 			{type: pkcs11js.CKA_KEY_TYPE, value: pkcs11js.CKK_EC},
 			{type: pkcs11js.CKA_PRIVATE, value: false},
-			{type: pkcs11js.CKA_TOKEN, value: this._pkcs11Login && pkcs11Token},
+			{type: pkcs11js.CKA_TOKEN, value: /*this._pkcs11Login && pkcs11Token*/true},
 			{type: pkcs11js.CKA_VERIFY, value: true},
 			{
 				type: pkcs11js.CKA_EC_PARAMS,
@@ -471,23 +476,23 @@ class CryptoSuite_PKCS11 extends CryptoSuite {
 		/*
 			* Set CKA_ID of public and private key to be SKI.
 			*/
-		const ski = HashPrimitives.SHA2_256(ecpt, null /* We want a Buffer */);
-		this._pkcs11SetAttributeValue(
-			pkcs11, pkcs11Session, handles.publicKey,
-			[{type: pkcs11js.CKA_ID, value: ski}, {type: pkcs11js.CKA_LABEL, value: ski.toString('hex')}]);
-		this._pkcs11SetAttributeValue(
-			pkcs11, pkcs11Session, handles.privateKey,
-			[{type: pkcs11js.CKA_ID, value: ski}, {type: pkcs11js.CKA_LABEL, value: ski.toString('hex')}]);
-		logger.debug(__func() + 'pub  ski: ' + util.inspect(
-			(this._pkcs11GetAttributeValue(
-				pkcs11, pkcs11Session, handles.publicKey,
-				[{type: pkcs11js.CKA_ID}]))[0].value,
-			{depth: null}));
-		logger.debug(__func() + 'priv ski: ' + util.inspect(
-			(this._pkcs11GetAttributeValue(
-				pkcs11, pkcs11Session, handles.privateKey,
-				[{type: pkcs11js.CKA_ID}]))[0].value,
-			{depth: null}));
+//		const ski = HashPrimitives.SHA2_256(ecpt, null /* We want a Buffer */);
+//		this._pkcs11SetAttributeValue(
+//			pkcs11, pkcs11Session, handles.publicKey,
+//			[{type: pkcs11js.CKA_ID, value: ski}, {type: pkcs11js.CKA_LABEL, value: ski.toString('hex')}]);
+//		this._pkcs11SetAttributeValue(
+//			pkcs11, pkcs11Session, handles.privateKey,
+//			[{type: pkcs11js.CKA_ID, value: ski}, {type: pkcs11js.CKA_LABEL, value: ski.toString('hex')}]);
+//		logger.debug(__func() + 'pub  ski: ' + util.inspect(
+//			(this._pkcs11GetAttributeValue(
+//				pkcs11, pkcs11Session, handles.publicKey,
+//				[{type: pkcs11js.CKA_ID}]))[0].value,
+//			{depth: null}));
+//		logger.debug(__func() + 'priv ski: ' + util.inspect(
+//			(this._pkcs11GetAttributeValue(
+//				pkcs11, pkcs11Session, handles.privateKey,
+//				[{type: pkcs11js.CKA_ID}]))[0].value,
+//			{depth: null}));
 
 		return {ski, ecpt, pub: handles.publicKey, priv: handles.privateKey};
 
