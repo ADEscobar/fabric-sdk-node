@@ -14,6 +14,7 @@ export interface HsmX509Identity extends Identity {
 	type: 'HSM-X.509';
 	credentials: {
 		certificate: string;
+		ski: string;
 	};
 }
 
@@ -22,6 +23,7 @@ interface HsmX509IdentityDataV1 extends IdentityData {
 	version: 1;
 	credentials: {
 		certificate: string;
+		ski: string;
 	};
 	mspId: string;
 }
@@ -70,6 +72,7 @@ export class HsmX509Provider implements IdentityProvider {
 			return {
 				credentials: {
 					certificate: x509Data.credentials.certificate,
+					ski: x509Data.credentials.ski,
 				},
 				mspId: x509Data.mspId,
 				type: 'HSM-X.509',
@@ -83,6 +86,7 @@ export class HsmX509Provider implements IdentityProvider {
 		const data: HsmX509IdentityDataV1 = {
 			credentials: {
 				certificate: identity.credentials.certificate,
+				ski: identity.credentials.ski,
 			},
 			mspId: identity.mspId,
 			type: 'HSM-X.509',
@@ -96,7 +100,7 @@ export class HsmX509Provider implements IdentityProvider {
 		user.setCryptoSuite(this.cryptoSuite);
 
 		const publicKey: ICryptoKey = await this.cryptoSuite.importKey(identity.credentials.certificate);
-		const privateKeyObj: ICryptoKey = await this.cryptoSuite.getKey(publicKey.getSKI());
+		const privateKeyObj: ICryptoKey = await this.cryptoSuite.getKey(identity.credentials.ski);
 		await user.setEnrollment(privateKeyObj, identity.credentials.certificate.toString(), identity.mspId, true);
 
 		return user;
